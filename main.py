@@ -10,7 +10,7 @@ class LinkShortner(QWidget):
         super().__init__()
         self.original_link_label = QLabel("Enter a link: ", self)
         self.original_link_input = QLineEdit(self)
-        self.link_name_label = QLabel("Enter a link name: ", self)
+        self.link_name_label = QLabel("Enter a link name: (Optional)", self)
         self.link_name_input = QLineEdit(self)
         self.get_link_button = QPushButton("Get Link", self)
         self.short_link_label = QLabel(self)
@@ -79,9 +79,13 @@ class LinkShortner(QWidget):
 
 
     def shorten_link(self):
-
         original_link = self.original_link_input.text()
         link_name = self.link_name_input.text()
+
+        # Check for empty input
+        if not original_link.strip():
+            self.short_link_label.setText("Enter a valid link.")
+            return
 
         API_KEY = '87b15d971ffa5ced2664ddba7caf46e9d8b57'
         BASE_URL = 'https://cutt.ly/api/api.php'
@@ -91,18 +95,34 @@ class LinkShortner(QWidget):
             'short': original_link,
             'name': link_name
         }
-        request = requests.get(BASE_URL, params=payload)
-        data = request.json()
-        print('')
-        try:
-            title = data['url']['title']
-            short_link = data['url']['shortLink']
 
-            print(f"Title: {title}")
-            print(f"Link: {short_link}")
-        except:
+        try:
+            response = requests.get(BASE_URL, params=payload)
+
+            data = response.json()
             status = data['url']['status']
-            print('Error Status', status)
+
+            if status == 7:  # Success
+                title = data['url'].get('title', 'No title')
+                short_link = data['url']['shortLink']
+                self.short_link_label.setText(short_link)
+                print(f"Title: {title}")
+                print(f"Short Link: {short_link}")
+            else:
+                error_message = {
+                    1: "The link you entered is invalid.",
+                    2: "The entered link is already shortened.",
+                    3: "The domain used is blacklisted.",
+                    4: "The URL contains invalid characters.",
+                    5: "The provided key is invalid.",
+                    6: "The link name is already taken.",
+                    7: "Unknown error occurred.",
+                }.get(status, "Unknown error occurred.")
+                self.short_link_label.setText(f"Error: {error_message}")
+                print(f"Error Status: {status}, {error_message}")
+        except Exception as e:
+            self.short_link_label.setText("An error occurred.")
+            print(f"Exception: {e}")
 
 
 
