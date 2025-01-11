@@ -3,7 +3,10 @@ import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
 class LinkShortner(QWidget):
     def __init__(self):
@@ -17,7 +20,7 @@ class LinkShortner(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("Link Shortner")
+        self.setWindowTitle("Link Shortener")
         self.setWindowIcon(QIcon("link.png"))
         vbox = QVBoxLayout()
 
@@ -35,7 +38,6 @@ class LinkShortner(QWidget):
         self.link_name_label.setAlignment(Qt.AlignCenter)
         self.link_name_input.setAlignment(Qt.AlignCenter)
         self.short_link_label.setAlignment(Qt.AlignCenter)
-
         self.original_link_label.setObjectName("original_link_label")
         self.original_link_input.setObjectName("original_link_input")
         self.link_name_label.setObjectName("link_name_label")
@@ -77,17 +79,21 @@ class LinkShortner(QWidget):
 
         self.get_link_button.clicked.connect(self.shorten_link)
 
-
     def shorten_link(self):
-        original_link = self.original_link_input.text()
-        link_name = self.link_name_input.text()
+        original_link = self.original_link_input.text().strip()
+        link_name = self.link_name_input.text().strip()
 
-        # Check for empty input
-        if not original_link.strip():
+        if not original_link:
             self.short_link_label.setText("Enter a valid link.")
             return
 
-        API_KEY = '87b15d971ffa5ced2664ddba7caf46e9d8b57'
+        load_dotenv()
+        API_KEY = os.getenv('API_KEY')
+
+        if not API_KEY:
+            self.short_link_label.setText("API Key not found. Check your configuration.")
+            return
+
         BASE_URL = 'https://cutt.ly/api/api.php'
 
         payload = {
@@ -98,14 +104,15 @@ class LinkShortner(QWidget):
 
         try:
             response = requests.get(BASE_URL, params=payload)
-
+            response.raise_for_status()
             data = response.json()
+
             status = data['url']['status']
 
             if status == 7:  # Success
                 title = data['url'].get('title', 'No title')
                 short_link = data['url']['shortLink']
-                self.short_link_label.setText(short_link)
+                self.short_link_label.setText(f"Short Link: {short_link}")
                 print(f"Title: {title}")
                 print(f"Short Link: {short_link}")
             else:
@@ -116,15 +123,12 @@ class LinkShortner(QWidget):
                     4: "The URL contains invalid characters.",
                     5: "The provided key is invalid.",
                     6: "The link name is already taken.",
-                    7: "Unknown error occurred.",
                 }.get(status, "Unknown error occurred.")
                 self.short_link_label.setText(f"Error: {error_message}")
                 print(f"Error Status: {status}, {error_message}")
         except Exception as e:
-            self.short_link_label.setText("An error occurred.")
+            self.short_link_label.setText("An error occurred. Try again.")
             print(f"Exception: {e}")
-
-
 
 
 if __name__ == '__main__':
